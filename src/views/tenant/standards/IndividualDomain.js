@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import PropTypes from 'prop-types'
 import { Form, Field } from 'react-final-form'
 import { useSearchParams } from 'react-router-dom'
-import { useExecDnsHelperQuery } from 'src/store/api/domains'
+import { useListDomainHealthQuery } from 'src/store/api/domains'
 import { CippCodeBlock, CippOffcanvas, StatusIcon } from 'src/components/utilities'
 import { OffcanvasListSection } from 'src/components/utilities/CippListOffcanvas'
 import { CippPage, CippMasonry, CippMasonryItem } from '../../../components/layout'
@@ -22,7 +22,6 @@ import {
   CNav,
   CNavItem,
   CNavLink,
-  CSpinner,
   CTabContent,
   CTabPane,
   CTableDataCell,
@@ -52,6 +51,7 @@ import {
   faGlobe,
   faQuestionCircle,
 } from '@fortawesome/free-solid-svg-icons'
+import Skeleton from 'react-loading-skeleton'
 
 const IconGreenCheck = () => <FontAwesomeIcon icon={faCheckCircle} className="text-success mx-2" />
 const IconRedX = () => <FontAwesomeIcon icon={faTimesCircle} className="text-danger mx-2" />
@@ -91,6 +91,13 @@ export function IndividualDomainCheck({
   const [httpsOverride, setHttpsOverride] = useState('')
   const [optionsVisible, setOptionsVisible] = useState(false)
   const [masonrySize, setMasonrySize] = useState()
+
+  const isValidDomain = (value) =>
+    /^(((?!-))(xn--|_{1,1})?[a-z0-9-]{0,61}[a-z0-9]{1,1}\.)*(xn--)?([a-z0-9][a-z0-9-]{0,60}|[a-z0-9-]{1,30}\.[a-z]{2,})$/i.test(
+      value,
+    )
+      ? undefined
+      : value
 
   useEffect(() => {
     if (initialDomain) {
@@ -159,7 +166,7 @@ export function IndividualDomainCheck({
               render={({ handleSubmit, submitting, pristine }) => {
                 return (
                   <CForm onSubmit={handleSubmit}>
-                    <Field name="domain">
+                    <Field name="domain" validate={isValidDomain}>
                       {({ input, meta }) => {
                         return (
                           <>
@@ -183,7 +190,7 @@ export function IndividualDomainCheck({
                                 <CButton
                                   size="sm"
                                   variant="outline"
-                                  color="light"
+                                  color="primary"
                                   onClick={() => setOptionsVisible(!optionsVisible)}
                                 >
                                   <FontAwesomeIcon className="mx-1" size="1x" icon={faCog} />
@@ -443,6 +450,24 @@ function ResultsCard({
     finalState = 'Fail'
   }
 
+  var docLink = ''
+  if (providerInfo) {
+    switch (type) {
+      case 'SPF':
+        docLink = providerInfo._SpfComment
+        break
+      case 'DKIM':
+        docLink = providerInfo._DkimComment
+        break
+      case 'MX':
+        docLink = providerInfo._MxComment
+        break
+      default:
+        docLink = ''
+        break
+    }
+  }
+
   return (
     <>
       <CCard className="content-card">
@@ -454,11 +479,7 @@ function ResultsCard({
           <span>
             {providerInfo && (
               <CTooltip content={`${providerInfo.Name} ${type} documentation`}>
-                <CLink
-                  className="mx-2 card-header-link"
-                  href={providerInfo._MxComment}
-                  target="_blank"
-                >
+                <CLink className="mx-2 card-header-link" href={docLink} target="_blank">
                   <FontAwesomeIcon icon={faQuestionCircle} className="me-2" />
                 </CLink>
               </CTooltip>
@@ -470,7 +491,7 @@ function ResultsCard({
           </span>
         </CCardHeader>
         <CCardBody>
-          {isFetching && <CSpinner />}
+          {isFetching && <Skeleton count={5} />}
           {!isFetching && error && <>{errorMessage}</>}
           {!isFetching && !error && (
             <>
@@ -517,13 +538,13 @@ ResultsCard.propTypes = {
 }
 
 const SPFResultsCard = ({ domain, spfOverride }) => {
-  const { data, isFetching, error } = useExecDnsHelperQuery({
+  const { data, isFetching, error } = useListDomainHealthQuery({
     Domain: domain,
     Action: 'ReadSpfRecord',
     Record: spfOverride,
   })
 
-  const { data: doc } = useExecDnsHelperQuery({
+  const { data: doc } = useListDomainHealthQuery({
     Domain: domain,
     Action: 'ReadMXRecord',
   })
@@ -655,7 +676,7 @@ function WhoisResultCard({ domain }) {
     data: whoisReport,
     isFetching,
     error,
-  } = useExecDnsHelperQuery({ Domain: domain, Action: 'ReadWhoisRecord' })
+  } = useListDomainHealthQuery({ Domain: domain, Action: 'ReadWhoisRecord' })
   const jsonContent = JSON.stringify(whoisReport, null, 2)
 
   let whoisContent = []
@@ -688,7 +709,7 @@ function WhoisResultCard({ domain }) {
         </CLink>
       </CCardHeader>
       <CCardBody>
-        {isFetching && <CSpinner />}
+        {isFetching && <Skeleton count={5} />}
         {!isFetching && error && <>Unable to obtain WHOIS information</>}
         {!isFetching && !error && (
           <>
@@ -727,10 +748,10 @@ function NSResultCard({ domain }) {
     data: nsReport,
     isFetching,
     error,
-  } = useExecDnsHelperQuery({ Domain: domain, Action: 'ReadNSRecord' })
+  } = useListDomainHealthQuery({ Domain: domain, Action: 'ReadNSRecord' })
 
   const content = []
-  if (nsReport?.Records.length > 0) {
+  if (!error && nsReport?.Records.length > 0) {
     nsReport?.Records.map((ns, index) =>
       content.push({
         body: ns,
@@ -755,7 +776,7 @@ function NSResultCard({ domain }) {
 NSResultCard.propTypes = sharedProps
 
 const HttpsResultCard = ({ domain, httpsOverride }) => {
-  const { data, isFetching, error } = useExecDnsHelperQuery({
+  const { data, isFetching, error } = useListDomainHealthQuery({
     Domain: domain,
     Action: 'TestHttpsCertificate',
     Subdomains: httpsOverride,
@@ -821,7 +842,7 @@ const HttpsResultCard = ({ domain, httpsOverride }) => {
 HttpsResultCard.propTypes = { httpsOverride: PropTypes.string, ...sharedProps }
 
 const MtaStsResultCard = ({ domain }) => {
-  const { data, isFetching, error } = useExecDnsHelperQuery({
+  const { data, isFetching, error } = useListDomainHealthQuery({
     Domain: domain,
     Action: 'TestMtaSts',
   })
@@ -901,7 +922,7 @@ const MtaStsResultCard = ({ domain }) => {
 MtaStsResultCard.propTypes = sharedProps
 
 const MXResultsCard = ({ domain }) => {
-  const { data, isFetching, error } = useExecDnsHelperQuery({
+  const { data, isFetching, error } = useListDomainHealthQuery({
     Domain: domain,
     Action: 'ReadMXRecord',
   })
@@ -967,7 +988,7 @@ const MXResultsCard = ({ domain }) => {
 MXResultsCard.propTypes = sharedProps
 
 function DMARCResultsCard({ domain }) {
-  const { data, isFetching, error } = useExecDnsHelperQuery({
+  const { data, isFetching, error } = useListDomainHealthQuery({
     Domain: domain,
     Action: 'ReadDmarcPolicy',
   })
@@ -1087,7 +1108,7 @@ function DMARCResultsCard({ domain }) {
 DMARCResultsCard.propTypes = sharedProps
 
 function DNSSECResultsCard({ domain }) {
-  const { data, isFetching, error } = useExecDnsHelperQuery({
+  const { data, isFetching, error } = useListDomainHealthQuery({
     Domain: domain,
     Action: 'TestDNSSEC',
   })
@@ -1151,13 +1172,13 @@ function DNSSECResultsCard({ domain }) {
 DNSSECResultsCard.propTypes = sharedProps
 
 function DKIMResultsCard({ domain, dkimOverride }) {
-  const { data, isFetching, error } = useExecDnsHelperQuery({
+  const { data, isFetching, error } = useListDomainHealthQuery({
     Domain: domain,
     Action: 'ReadDkimRecord',
     Selector: dkimOverride,
   })
   const [visible, setVisible] = useState(false)
-  const { data: doc } = useExecDnsHelperQuery({
+  const { data: doc } = useListDomainHealthQuery({
     Domain: domain,
     Action: 'ReadMXRecord',
   })

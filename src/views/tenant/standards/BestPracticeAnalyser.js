@@ -23,7 +23,7 @@ const RefreshAction = () => {
         <div>
           Are you sure you want to force the Best Practice Analysis to run? This will slow down
           normal usage considerably. <br />
-          <i>Please note: this runs at midnight automatically every day.</i>
+          <i>Please note: this runs at 3:00 AM UTC automatically every day.</i>
         </div>
       ),
       onConfirm: () => execBestPracticeAnalyser(),
@@ -52,10 +52,10 @@ const BestPracticeAnalyser = () => {
   const handleUnusedLicense = ({ row }) => {
     const columns = [
       {
-        name: 'SKU',
-        selector: (row) => row['SKU'],
+        name: 'License',
+        selector: (row) => row['License'],
         sortable: true,
-        exportSelector: 'SKU',
+        exportSelector: 'License',
       },
       {
         name: 'Purchased',
@@ -71,17 +71,8 @@ const BestPracticeAnalyser = () => {
       },
     ]
 
-    const tabularized = row.UnusedLicenseList.split('<br />')
-      .map((line) =>
-        line
-          .split(', ')
-          .map((sku) => sku.split(': ').reduce((key, val) => ({ [key]: val })))
-          .reduce((pv, cv) => ({ ...pv, ...cv })),
-      )
-      .sort((a, b) => b.SKU.toLocaleLowerCase().localeCompare(a.SKU.toLocaleLowerCase()))
-
     ModalService.open({
-      data: tabularized,
+      data: row.UnusedLicenseList,
       componentType: 'table',
       componentProps: {
         columns,
@@ -114,6 +105,8 @@ const BestPracticeAnalyser = () => {
       cell: cellDateFormatter({ format: 'short' }),
       sortable: true,
       exportSelector: 'LastRefresh',
+      minWidth: '145px',
+      maxWidth: '145px',
     },
     {
       name: 'Unified Audit Log Enabled',
@@ -121,6 +114,8 @@ const BestPracticeAnalyser = () => {
       cell: cellBooleanFormatter(),
       sortable: true,
       exportSelector: 'UnifiedAuditLog',
+      minWidth: '150px',
+      maxWidth: '150px',
     },
     {
       name: 'Security Defaults Enabled',
@@ -128,6 +123,8 @@ const BestPracticeAnalyser = () => {
       cell: cellBooleanFormatter({ warning: true }),
       sortable: true,
       exportSelector: 'SecureDefaultState',
+      minWidth: '150px',
+      maxWidth: '150px',
     },
     {
       name: 'Message Copy for Send As',
@@ -148,13 +145,17 @@ const BestPracticeAnalyser = () => {
         return <CellBadge label="No Data" color="info" />
       },
       sortable: true,
+      minWidth: '150px',
+      maxWidth: '150px',
     },
     {
       name: 'User Cannot Consent to Apps',
       selector: (row) => row['AdminConsentForApplications'],
       cell: cellBooleanFormatter({ reverse: true }),
       sortable: true,
-      exportSelector: 'AdminConsentForApplication',
+      exportSelector: 'AdminConsentForApplications',
+      minWidth: '150px',
+      maxWidth: '150px',
     },
     {
       name: 'Passwords Do Not Expire',
@@ -162,6 +163,8 @@ const BestPracticeAnalyser = () => {
       cell: cellBooleanFormatter(),
       sortable: true,
       exportSelector: 'DoNotExpirePasswords',
+      minWidth: '150px',
+      maxWidth: '150px',
     },
     {
       name: 'Privacy in Reports Enabled',
@@ -169,6 +172,8 @@ const BestPracticeAnalyser = () => {
       cell: cellBooleanFormatter({ reverse: true, warning: true }),
       sortable: true,
       exportSelector: 'PrivacyEnabled',
+      minWidth: '150px',
+      maxWidth: '150px',
     },
     {
       name: 'Self Service Password Reset Enabled',
@@ -186,13 +191,17 @@ const BestPracticeAnalyser = () => {
         return <CellBadge label="No Data" color="info" />
       },
       sortable: true,
+      minWidth: '150px',
+      maxWidth: '150px',
     },
     {
       name: 'Modern Auth Enabled',
       selector: (row) => row['EnableModernAuth'],
       sortable: true,
-      exportSelector: 'EnabledModernAuth',
+      exportSelector: 'EnableModernAuth',
       cell: cellBooleanFormatter(),
+      minWidth: '150px',
+      maxWidth: '150px',
     },
     {
       name: 'Shared Mailboxes Logins Disabled',
@@ -216,11 +225,13 @@ const BestPracticeAnalyser = () => {
         return <CellBadge label="No Data" color="info" />
       },
       sortable: true,
+      minWidth: '150px',
+      maxWidth: '150px',
     },
     {
       name: 'Unused Licenses',
       selector: (row) => row['UnusedLicensesResult'],
-      exportSelector: 'UnusedLicencesResult',
+      exportSelector: 'UnusedLicensesResult',
       cell: (row, index, column) => {
         const cell = column.selector(row)
         if (cell === 'FAIL') {
@@ -236,6 +247,8 @@ const BestPracticeAnalyser = () => {
         return <CellBadge label="No Data" color="info" />
       },
       sortable: true,
+      minWidth: '150px',
+      maxWidth: '150px',
     },
     {
       name: 'Secure Score',
@@ -249,11 +262,14 @@ const BestPracticeAnalyser = () => {
         return <CellProgressBar value={row.SecureScorePercentage} />
       },
       sortable: true,
+      minWidth: '150px',
+      maxWidth: '150px',
     },
   ]
 
   return (
     <CippPageList
+      capabilities={{ allTenants: true, helpContext: 'https://google.com' }}
       title="Best Practice Analyser"
       tenantSelector={false}
       datatable={{

@@ -6,6 +6,8 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faEye, faEdit, faEllipsisV, faMobileAlt } from '@fortawesome/free-solid-svg-icons'
 import { Link } from 'react-router-dom'
 import { CippActionsOffcanvas } from 'src/components/utilities'
+import { TitleButton } from 'src/components/buttons'
+import { CellTip } from 'src/components/tables'
 
 const MailboxList = () => {
   const tenant = useSelector((state) => state.app.currentTenant)
@@ -15,7 +17,7 @@ const MailboxList = () => {
     return (
       <>
         <Link
-          to={`/identity/administration/users/view?userId=${row.UPN}&tenantDomain=${tenant.defaultDomainName}`}
+          to={`/identity/administration/users/view?userId=${row.id}&tenantDomain=${tenant.defaultDomainName}&email=${row.UPN}`}
         >
           <CButton size="sm" variant="ghost" color="success">
             <FontAwesomeIcon icon={faEye} />
@@ -28,7 +30,9 @@ const MailboxList = () => {
             <FontAwesomeIcon icon={faEdit} />
           </CButton>
         </Link>
-        <Link to={`/email/administration/view-mobile-devices?userId=${row.primarySmtpAddress}`}>
+        <Link
+          to={`/email/administration/view-mobile-devices?customerId=${tenant.defaultDomainName}&userId=${row.primarySmtpAddress}`}
+        >
           <CButton size="sm" variant="ghost" color="warning">
             <FontAwesomeIcon icon={faMobileAlt} />
           </CButton>
@@ -60,6 +64,11 @@ const MailboxList = () => {
           ]}
           actions={[
             {
+              label: 'Edit Calendar permissions',
+              link: `/email/administration/edit-calendar-permissions?userId=${row.UPN}&tenantDomain=${tenant.defaultDomainName}`,
+              color: 'info',
+            },
+            {
               label: 'Research Compromised Account',
               link: `/identity/administration/ViewBec?userId=${row.UPN}&tenantDomain=${tenant.defaultDomainName}`,
               color: 'info',
@@ -86,6 +95,22 @@ const MailboxList = () => {
               modalMessage:
                 'Are you sure you want to convert this shared mailbox to a user mailbox?',
             },
+            {
+              label: 'Hide from Global Address List',
+              color: 'info',
+              modal: true,
+              modalUrl: `/api/ExecHideFromGAL?TenantFilter=${tenant.defaultDomainName}&ID=${row.UPN}&HidefromGAL=true`,
+              modalMessage:
+                'Are you sure you want to hide this mailbox from the global address list? Remember this will not work if the user is AD Synched.',
+            },
+            {
+              label: 'Unhide from Global Address List',
+              color: 'info',
+              modal: true,
+              modalUrl: `/api/ExecHideFromGAL?TenantFilter=${tenant.defaultDomainName}&ID=${row.UPN}`,
+              modalMessage:
+                'Are you sure you want to unhide this mailbox from the global address list? Remember this will not work if the user is AD Synched.',
+            },
           ]}
           placement="end"
           visible={ocVisible}
@@ -103,30 +128,38 @@ const MailboxList = () => {
       name: 'User Prinicipal Name',
       sortable: true,
       exportSelector: 'UPN',
+      cell: (row) => CellTip(row['UPN']),
+      maxWidth: '300px',
     },
     {
       selector: (row) => row['displayName'],
       name: 'Display Name',
       sortable: true,
+      cell: (row) => CellTip(row['displayName']),
       exportSelector: 'displayName',
+      maxWidth: '300px',
     },
     {
       selector: (row) => row['primarySmtpAddress'],
       name: 'Primary E-mail Address',
       sortable: true,
+      cell: (row) => CellTip(row['primarySmtpAddress']),
       exportSelector: 'primarySmtpAddress',
+      maxWidth: '300px',
     },
     {
       selector: (row) => row['recipientType'],
       name: 'Recipient Type',
       sortable: true,
       exportSelector: 'recipientType',
+      maxWidth: '150px',
     },
     {
       selector: (row) => row['recipientTypeDetails'],
       name: 'Recipient Type Details',
       sortable: true,
       exportSelector: 'recipientTypeDetails',
+      maxWidth: '170px',
     },
     {
       name: 'Additional Email Addresses',
@@ -138,11 +171,17 @@ const MailboxList = () => {
     {
       name: 'Actions',
       cell: Offcanvas,
+      maxWidth: '150px',
     },
   ]
+  const titleButton = (
+    <TitleButton href="/email/administration/add-shared-mailbox" title="Add Shared Mailbox" />
+  )
 
   return (
     <CippPageList
+      capabilities={{ allTenants: false, helpContext: 'https://google.com' }}
+      titleButton={titleButton}
       title="Mailboxes"
       datatable={{
         keyField: 'id',
@@ -150,6 +189,18 @@ const MailboxList = () => {
         path: '/api/ListMailboxes',
         columns,
         params: { TenantFilter: tenant?.defaultDomainName },
+        filterlist: [
+          {
+            filterName: 'User Mailboxes',
+            filter: '"recipientTypeDetails":"UserMailbox"',
+          },
+          {
+            filterName: 'Shared Mailboxes with license',
+            filter: '"SharedMailboxWithLicense":true',
+          },
+          { filterName: 'Shared Mailboxes', filter: '"recipientTypeDetails":"SharedMailbox"' },
+          { filterName: 'Has an alias', filter: '"AdditionalEmailAddresses":"' },
+        ],
       }}
     />
   )
